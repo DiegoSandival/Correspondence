@@ -4,6 +4,7 @@ use blake2::{Blake2b, Blake2bMac};
 use correspondence::{
     CellEngine, CellError, CMD_ESCRIBIR_SELF, CMD_LEER_SELF,
 };
+use dotenvy::dotenv;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 fn blake2b32(input: &[u8]) -> [u8; 32] {
@@ -36,6 +37,7 @@ fn params_read(key: &[u8]) -> Vec<u8> {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let _ = dotenv();
     let genesis_secret = std::env::var("GENESIS_SECRET")?;
     let genesis_solution = blake2b32(genesis_secret.as_bytes());
 

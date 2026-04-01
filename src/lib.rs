@@ -1,3 +1,19 @@
+//! Correspondence modela un sistema de celulas con capacidades verificadas por secreto.
+//!
+//! La crate expone un motor asincrono (`CellEngine`) que permite ejecutar operaciones
+//! sobre una celula desbloqueada por su solucion de 32 bytes. Las operaciones disponibles
+//! son lectura, escritura, borrado, derivacion, combinacion e inspeccion.
+//!
+//! Flujo tipico de uso:
+//!
+//! 1. Crear el motor con [`CellEngine::new`].
+//! 2. Obtener o derivar la solucion de la celula que quieres usar.
+//! 3. Construir los parametros binarios para la operacion.
+//! 4. Ejecutar [`CellEngine::ejecutar`] con el opcode correspondiente.
+//!
+//! Para una guia de integracion mas directa, revisa `README.md`, `docs/API.md`
+//! y los ejemplos en `examples/`.
+
 use std::sync::Arc;
 
 use dotenvy::dotenv;
@@ -22,12 +38,20 @@ const TEMP_TABLE: TableDefinition<&str, &[u8]> = TableDefinition::new("temp_tabl
 const DEFAULT_DATA_SIZE: usize = 96;
 const DEFAULT_MAX_RECORDS: u32 = (4 * 1024 * 1024 * 1024u64 / (DEFAULT_DATA_SIZE as u64 + 1)) as u32;
 
+/// Motor principal de Correspondence.
+///
+/// Mantiene el registro de celulas y el KV store usados por las operaciones.
+/// Al construirse, carga `.env` con `dotenvy` e inyecta la celula genesis si la base esta vacia.
 pub struct CellEngine {
     pub db: Arc<RwLock<OuroborosDB>>,
     pub kv: Arc<Database>,
 }
 
 impl CellEngine {
+    /// Crea un nuevo motor usando las rutas indicadas para la base circular y el KV store.
+    ///
+    /// Requiere que `GENESIS_SECRET` exista en el entorno o en `.env` para poder crear
+    /// la celula genesis cuando la base esta vacia.
     pub async fn new(circular_db_path: &str, kv_path: &str) -> CellResult<Self> {
         let _ = dotenv();
 
@@ -64,6 +88,18 @@ impl CellEngine {
         Ok(engine)
     }
 
+    /// Ejecuta una operacion sobre la celula apuntada por `target_index`.
+    ///
+    /// La libreria resuelve primero el indice real de la celula y valida `solucion`
+    /// contra su candado. Despues despacha la operacion segun `opcode`.
+    ///
+    /// Opcodes soportados:
+    /// - `0x01`: leer
+    /// - `0x02`: escribir
+    /// - `0x03`: borrar
+    /// - `0x04`: derivar
+    /// - `0x05`: combinar
+    /// - `0x06`: inspeccionar
     pub async fn ejecutar(
         &self,
         target_index: u32,
