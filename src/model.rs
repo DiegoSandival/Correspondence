@@ -53,34 +53,34 @@ pub struct Unauthorized {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub enum ReadResult {
+pub enum MembraneReadOutcome {
     Ok { value: Vec<u8>, new_cell_index: u32 },
     Undefined { cell_index: u32 },
     Unauthorized(Unauthorized),
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub enum FreeReadResult {
+pub enum FreeMembraneReadOutcome {
     Ok { value: Vec<u8> },
     Undefined,
     Unauthorized,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub enum MutationResult {
+pub enum MembraneMutationOutcome {
     Ok { new_cell_index: u32 },
     Undefined { cell_index: u32 },
     Unauthorized(Unauthorized),
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub enum CellReadResult {
+pub enum AuthenticatedCellReadOutcome {
     Ok { celula: Celula, cell_index: u32 },
     Unauthorized,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub enum DeferResult {
+pub enum CellDerivationOutcome {
     Ok {
         deferred_index: u32,
         new_cell_index: u32,
@@ -89,7 +89,7 @@ pub enum DeferResult {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub enum CrossResult {
+pub enum CellFusionOutcome {
     Ok {
         child_index: u32,
         new_cell_index_a: u32,

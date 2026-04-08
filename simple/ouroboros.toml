@@ -1,0 +1,3 @@
+data_path = "ouroboros.db"
+max_records = 64
+sync_writes = false

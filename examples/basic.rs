@@ -2,7 +2,9 @@ use std::fs;
 use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use correspondence::{Correspondence, CorrespondenceConfig, MutationResult, ReadResult, Result};
+use correspondence::{
+    Correspondence, CorrespondenceConfig, MembraneMutationOutcome, MembraneReadOutcome, Result,
+};
 
 fn temp_dir() -> PathBuf {
     let unique = SystemTime::now()
@@ -37,12 +39,14 @@ fn main() -> Result<()> {
 
     let config = CorrespondenceConfig::new(&config_path, &membranes_path)
         .with_genesis_secret_env(env_name);
-    let mut app = Correspondence::open(config)?;
+    let mut app = Correspondence::builder(config)
+        .with_configured_env_bootstrap()
+        .build()?;
 
     let genesis_index = app.genesis_index()?;
     println!("genesis index: {genesis_index}");
 
-    let MutationResult::Ok { new_cell_index } = app.write(
+    let MembraneMutationOutcome::Ok { new_cell_index } = app.write_membrane(
         "saludo",
         b"hola desde correspondence",
         genesis_index,
@@ -53,10 +57,10 @@ fn main() -> Result<()> {
     };
     println!("write refreshed cell index: {new_cell_index}");
 
-    let ReadResult::Ok {
+    let MembraneReadOutcome::Ok {
         value,
         new_cell_index,
-    } = app.read("saludo", new_cell_index, genesis_secret.as_bytes())?
+    } = app.read_membrane("saludo", new_cell_index, genesis_secret.as_bytes())?
     else {
         unreachable!("genesis read should succeed");
     };

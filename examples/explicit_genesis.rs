@@ -3,8 +3,8 @@ use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use correspondence::{
-    CellReadResult, ChildSpec, Correspondence, CorrespondenceConfig, DeferResult, MutationResult,
-    ReadResult, Result,
+    AuthenticatedCellReadOutcome, CellDerivationOutcome, ChildSpec, Correspondence,
+    CorrespondenceConfig, MembraneMutationOutcome, MembraneReadOutcome, Result,
 };
 use ouroboros::Genoma;
 
@@ -35,17 +35,16 @@ fn main() -> Result<()> {
     let genesis_secret = b"diarsaba";
 
     let config = CorrespondenceConfig::new(&config_path, &membranes_path);
-    let mut app = Correspondence::open_uninitialized(config)?;
+    let mut app = Correspondence::builder(config)
+        .with_explicit_genesis(genesis_secret, Correspondence::default_genesis_genoma())
+        .build()?;
 
-    let genesis_index = app.initialize_genesis(
-        genesis_secret,
-        Correspondence::default_genesis_genoma(),
-    )?;
+    let genesis_index = app.genesis_index()?;
     println!("genesis index: {genesis_index}");
 
-    let MutationResult::Ok {
+    let MembraneMutationOutcome::Ok {
         new_cell_index: genesis_after_hola,
-    } = app.write("hola", b"mundo", genesis_index, genesis_secret)?
+    } = app.write_membrane("hola", b"mundo", genesis_index, genesis_secret)?
     else {
         unreachable!("genesis write should succeed");
     };
@@ -60,34 +59,34 @@ fn main() -> Result<()> {
     };
 
     let child_secret = b"cel1-secret";
-    let DeferResult::Ok {
+    let CellDerivationOutcome::Ok {
         deferred_index: child_index,
         new_cell_index: refreshed_genesis,
-    } = app.defer(genesis_after_hola, genesis_secret, child_secret, child_spec)?
+    } = app.derive_cell(genesis_after_hola, genesis_secret, child_secret, child_spec)?
     else {
         unreachable!("genesis defer should succeed");
     };
     println!("derived child index: {child_index}; genesis refreshed to {refreshed_genesis}");
 
-    match app.read("hola", child_index, child_secret)? {
-        ReadResult::Unauthorized(_) => {
+    match app.read_membrane("hola", child_index, child_secret)? {
+        MembraneReadOutcome::Unauthorized(_) => {
             println!("child read hola -> unauthorized, as expected");
         }
         other => panic!("expected unauthorized for child reading hola, got {other:?}"),
     }
 
-    let MutationResult::Ok {
+    let MembraneMutationOutcome::Ok {
         new_cell_index: child_after_write,
-    } = app.write("yosoy", b"cel1", child_index, child_secret)?
+    } = app.write_membrane("yosoy", b"cel1", child_index, child_secret)?
     else {
         unreachable!("child write should succeed");
     };
     println!("child wrote yosoy -> cel1, refreshed to {child_after_write}");
 
-    let ReadResult::Ok {
+    let MembraneReadOutcome::Ok {
         value,
         new_cell_index: genesis_after_read,
-    } = app.read("yosoy", refreshed_genesis, genesis_secret)?
+    } = app.read_membrane("yosoy", refreshed_genesis, genesis_secret)?
     else {
         unreachable!("genesis should read child membrane");
     };
@@ -96,19 +95,19 @@ fn main() -> Result<()> {
         String::from_utf8_lossy(&value)
     );
 
-    let MutationResult::Ok {
+    let MembraneMutationOutcome::Ok {
         new_cell_index: genesis_after_delete,
-    } = app.delete("yosoy", genesis_after_read, genesis_secret)?
+    } = app.delete_membrane("yosoy", genesis_after_read, genesis_secret)?
     else {
         unreachable!("genesis should delete child membrane");
     };
     println!("genesis deleted yosoy, refreshed to {genesis_after_delete}");
 
-    match app.read_cell(child_after_write, child_secret)? {
-        CellReadResult::Ok { cell_index, .. } => {
+    match app.read_authenticated_cell(child_after_write, child_secret)? {
+        AuthenticatedCellReadOutcome::Ok { cell_index, .. } => {
             println!("child remains active at resolved index {cell_index}");
         }
-        CellReadResult::Unauthorized => {
+        AuthenticatedCellReadOutcome::Unauthorized => {
             panic!("child should still authenticate after its own write");
         }
     }

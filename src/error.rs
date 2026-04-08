@@ -8,6 +8,12 @@ pub type Result<T> = std::result::Result<T, Error>;
 pub enum Error {
     #[error("missing genesis secret in environment variable {0}")]
     MissingGenesisSecret(String),
+    #[error("invalid builder state: {0}")]
+    InvalidBuilderState(&'static str),
+    #[error("invalid protocol frame: {0}")]
+    InvalidProtocolFrame(&'static str),
+    #[error("database not found: {0}")]
+    DatabaseNotFound(String),
     #[error("bootstrap metadata is missing but the ouroboros ring already contains data")]
     BootstrapMetadataMissing,
     #[error("invalid membrane record")]

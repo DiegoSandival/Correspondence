@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Correspondence</title>
+  <style>
+    :root {
+      --bg: #f3efe5;
+      --surface: rgba(255, 252, 245, 0.92);
+      --surface-strong: #fffdf8;
+      --ink: #1b1a17;
+      --muted: #686257;
+      --line: #d4cab7;
+      --accent: #b84c2a;
+      --accent-soft: #f3d2c6;
+      --ok: #365e3b;
+      --warn: #8b5e12;
+      --error: #a22626;
+      --shadow: 0 20px 60px rgba(53, 38, 20, 0.10);
+      --radius: 18px;
+      --radius-sm: 12px;
+      --font-head: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", serif;
+      --font-body: "Aptos", "Segoe UI", sans-serif;
+      --font-mono: "Cascadia Mono", "Consolas", monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at top left, rgba(184, 76, 42, 0.10), transparent 32%),
+        radial-gradient(circle at bottom right, rgba(54, 94, 59, 0.08), transparent 24%),
+        linear-gradient(180deg, #f8f3e8 0%, var(--bg) 100%);
+      color: var(--ink);
+      font-family: var(--font-body);
+    }
+
+    .shell {
+      width: min(1400px, calc(100vw - 32px));
+      margin: 24px auto 40px;
+      display: grid;
+      gap: 20px;
+    }
+
+    .hero {
+      background: linear-gradient(135deg, rgba(255, 252, 245, 0.94), rgba(248, 239, 223, 0.94));
+      border: 1px solid rgba(212, 202, 183, 0.8);
+      border-radius: 28px;
+      box-shadow: var(--shadow);
+      padding: 28px;
+      display: grid;
+      gap: 10px;
+    }
+
+    .hero h1 {
+      margin: 0;
+      font-family: var(--font-head);
+      font-size: clamp(2rem, 4vw, 3.4rem);
+      font-weight: 600;
+      letter-spacing: -0.04em;
+    }
+
+    .hero p {
+      margin: 0;
+      max-width: 80ch;
+      color: var(--muted);
+      line-height: 1.45;
+    }
+
+    .status-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+      font-size: 0.95rem;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      border: 1px solid var(--line);
+      background: var(--surface-strong);
+      border-radius: 999px;
+      padding: 8px 12px;
+    }
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      background: var(--warn);
+    }
+
+    .dot.connected {
+      background: var(--ok);
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(12, minmax(0, 1fr));
+      gap: 20px;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid rgba(212, 202, 183, 0.9);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 18px;
+      display: grid;
+      gap: 14px;
+      align-content: start;
+      animation: rise 320ms ease;
+    }
+
+    .card h2 {
+      margin: 0;
+      font-family: var(--font-head);
+      font-size: 1.3rem;
+      font-weight: 600;
+    }
+
+    .card p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.4;
+      font-size: 0.94rem;
+    }
+
+    .span-4 { grid-column: span 4; }
+    .span-6 { grid-column: span 6; }
+    .span-8 { grid-column: span 8; }
+    .span-12 { grid-column: span 12; }
+
+    .row {
+      display: grid;
+      gap: 10px;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    }
+
+    label {
+      display: grid;
+      gap: 6px;
+      font-size: 0.9rem;
+      color: var(--muted);
+    }
+
+    input, textarea, select, button {
+      font: inherit;
+    }
+
+    input, textarea, select {
+      width: 100%;
+      padding: 11px 12px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-sm);
+      background: rgba(255, 255, 255, 0.88);
+      color: var(--ink);
+    }
+
+    textarea {
+      min-height: 110px;
+      resize: vertical;
+      font-family: var(--font-mono);
+      font-size: 0.92rem;
+    }
+
+    button {
+      border: 1px solid transparent;
+      border-radius: var(--radius-sm);
+      background: var(--accent);
+      color: white;
+      padding: 11px 14px;
+      cursor: pointer;
+      transition: transform 140ms ease, opacity 140ms ease, background 140ms ease;
+    }
+
+    button:hover {
+      transform: translateY(-1px);
+      background: #a74325;
+    }
+
+    button.secondary {
+      background: transparent;
+      color: var(--ink);
+      border-color: var(--line);
+    }
+
+    button.secondary:hover {
+      background: rgba(255, 255, 255, 0.75);
+    }
+
+    button.danger {
+      background: var(--error);
+    }
+
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .db-list {
+      display: grid;
+      gap: 10px;
+      max-height: 340px;
+      overflow: auto;
+      padding-right: 2px;
+    }
+
+    .db-item {
+      border: 1px solid var(--line);
+      border-radius: var(--radius-sm);
+      background: rgba(255, 255, 255, 0.62);
+      padding: 12px;
+      display: grid;
+      gap: 8px;
+    }
+
+    .db-item.active {
+      border-color: var(--accent);
+      box-shadow: inset 0 0 0 1px rgba(184, 76, 42, 0.2);
+      background: linear-gradient(180deg, rgba(243, 210, 198, 0.45), rgba(255, 255, 255, 0.82));
+    }
+
+    .db-id {
+      word-break: break-all;
+      font-family: var(--font-mono);
+      font-size: 0.82rem;
+      color: var(--muted);
+    }
+
+    .gene-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+      gap: 8px;
+    }
+
+    .gene {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 9px 10px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.75);
+      color: var(--ink);
+      font-size: 0.84rem;
+    }
+
+    .gene input {
+      width: auto;
+      margin: 0;
+    }
+
+    .log {
+      background: #181613;
+      color: #eee4d0;
+      border-radius: var(--radius);
+      padding: 14px;
+      min-height: 220px;
+      max-height: 360px;
+      overflow: auto;
+      font-family: var(--font-mono);
+      font-size: 0.86rem;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .kv {
+      display: grid;
+      gap: 8px;
+    }
+
+    .hint {
+      font-size: 0.84rem;
+      color: var(--muted);
+    }
+
+    @keyframes rise {
+      from {
+        opacity: 0;
+        transform: translateY(12px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @media (max-width: 1080px) {
+      .span-4, .span-6, .span-8 {
+        grid-column: span 12;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <section class="hero">
+      <h1>Correspondence</h1>
+      <p>Single-process Rust server, multi-database registry, raw-binary WebSocket transport. Create a database first, then provision genesis explicitly with secret, genome and coordinates.</p>
+      <div class="status-row">
+        <div class="pill"><span id="ws-dot" class="dot"></span><span id="ws-status">connecting...</span></div>
+        <div class="pill">selected DB: <strong id="selected-db">none</strong></div>
+        <div class="pill">genesis: <strong id="selected-genesis">unknown</strong></div>
+      </div>
+    </section>
+
+    <section class="grid">
+      <article class="card span-4">
+        <h2>Database Registry</h2>
+        <p>Create, inspect, select and delete isolated databases. Every operational frame includes the selected database UUID.</p>
+        <div class="row">
+          <label>Max records
+            <input id="db-max-records" type="number" min="1" value="1024">
+          </label>
+        </div>
+        <div class="actions">
+          <button id="db-create">Create DB</button>
+          <button id="db-refresh" class="secondary">Refresh List</button>
+        </div>
+        <div id="db-list" class="db-list"></div>
+      </article>
+
+      <article class="card span-8">
+        <h2>Genome Editor</h2>
+        <p>Bits 0..11 map to known flags. Bits 12..30 remain available as custom slots.</p>
+        <div id="gene-grid" class="gene-grid"></div>
+        <div class="actions">
+          <button id="genes-genesis">Genesis Default</button>
+          <button id="genes-clear" class="secondary">Clear Genome</button>
+        </div>
+        <div class="hint">Current mask: <span id="genome-mask">0</span></div>
+      </article>
+
+      <article class="card span-6">
+        <h2>Genesis / Cell Spec</h2>
+        <p>The same form is used for genesis provisioning and child/fusion cell construction.</p>
+        <div class="row">
+          <label>Secret
+            <input id="cell-secret" type="text" value="diarsaba">
+          </label>
+          <label>Salt hex (16 bytes)
+            <input id="cell-salt" type="text" value="00000000000000000000000000000000">
+          </label>
+        </div>
+        <div class="row">
+          <label>X
+            <input id="cell-x" type="number" min="0" value="1">
+          </label>
+          <label>Y
+            <input id="cell-y" type="number" min="0" value="1">
+          </label>
+          <label>Z
+            <input id="cell-z" type="number" min="0" value="1">
+          </label>
+        </div>
+        <div class="actions">
+          <button id="genesis-provision">Provision Genesis</button>
+          <button id="db-status" class="secondary">Fetch DB Status</button>
+        </div>
+      </article>
+
+      <article class="card span-6">
+        <h2>Membranes</h2>
+        <p>Membrane payloads can be authored as UTF-8 text or raw hexadecimal bytes.</p>
+        <div class="row">
+          <label>Key
+            <input id="membrane-key" type="text" value="hola">
+          </label>
+          <label>Cell index
+            <input id="membrane-cell-index" type="number" min="0" value="0">
+          </label>
+        </div>
+        <div class="row">
+          <label>Auth secret
+            <input id="membrane-secret" type="text" value="diarsaba">
+          </label>
+          <label>Value mode
+            <select id="membrane-value-mode">
+              <option value="text">UTF-8 text</option>
+              <option value="hex">Hex bytes</option>
+            </select>
+          </label>
+        </div>
+        <label>Value
+          <textarea id="membrane-value">mundo</textarea>
+        </label>
+        <div class="actions">
+          <button id="membrane-write">Write</button>
+          <button id="membrane-read" class="secondary">Read</button>
+          <button id="membrane-read-free" class="secondary">Read Free</button>
+          <button id="membrane-delete" class="danger">Delete</button>
+        </div>
+      </article>
+
+      <article class="card span-6">
+        <h2>Derive Cell</h2>
+        <div class="row">
+          <label>Parent index
+            <input id="derive-parent-index" type="number" min="0" value="0">
+          </label>
+          <label>Parent secret
+            <input id="derive-parent-secret" type="text" value="diarsaba">
+          </label>
+        </div>
+        <div class="row">
+          <label>Child secret
+            <input id="derive-child-secret" type="text" value="cel1">
+          </label>
+        </div>
+        <div class="actions">
+          <button id="derive-run">Derive</button>
+        </div>
+      </article>
+
+      <article class="card span-6">
+        <h2>Fuse Cells</h2>
+        <div class="row">
+          <label>Cell A index
+            <input id="fuse-index-a" type="number" min="0" value="0">
+          </label>
+          <label>Secret A
+            <input id="fuse-secret-a" type="text" value="diarsaba">
+          </label>
+        </div>
+        <div class="row">
+          <label>Cell B index
+            <input id="fuse-index-b" type="number" min="0" value="0">
+          </label>
+          <label>Secret B
+            <input id="fuse-secret-b" type="text" value="diarsaba">
+          </label>
+        </div>
+        <div class="row">
+          <label>Child secret
+            <input id="fuse-child-secret" type="text" value="fusion1">
+          </label>
+        </div>
+        <div class="actions">
+          <button id="fuse-run">Fuse</button>
+        </div>
+      </article>
+
+      <article class="card span-6">
+        <h2>Authenticated Cell Read</h2>
+        <div class="row">
+          <label>Cell index
+            <input id="inspect-index" type="number" min="0" value="0">
+          </label>
+          <label>Secret
+            <input id="inspect-secret" type="text" value="diarsaba">
+          </label>
+        </div>
+        <div class="actions">
+          <button id="inspect-run">Read Cell</button>
+        </div>
+        <div id="inspect-output" class="kv hint">No cell inspected yet.</div>
+      </article>
+
+      <article class="card span-6">
+        <h2>Event Log</h2>
+        <p>Transport and decoded responses are mirrored here for quick inspection.</p>
+        <div id="log" class="log"></div>
+      </article>
+    </section>
+  </main>
+
+  <script src="/app.js"></script>
+</body>
+</html>
