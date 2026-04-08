@@ -1,0 +1,393 @@
+keyvalue{
+
+    set(key, membrana) → ok()
+
+    get(key) → ok(membrana) || undefined
+
+    del(key) → ok()
+
+}
+
+
+correspondencia{
+
+    // La libreria Ouroboros solo guarda Celula por indice.
+    // El indice key/value de membranas vive en esta app nueva.
+    // API real que si existe:
+    // - ouroboros.append(celula) -> Result<u32>
+    // - ouroboros.read(index) -> Result<Celula>
+    // - ouroboros.read_auth(index, secreto) -> Result<Celula>
+    // - ouroboros.update(index, celula) -> Result<()>
+    // - ouroboros.update_auth(index, secreto, celula) -> Result<()>
+    // - Celula.with_secret(salt, secreto, genoma, x, y, z)
+
+    función leer(key, celula_index, secreto) {
+
+        activa = resolver_celula(celula_index, secreto)
+        if (!activa) {
+            return { status: unauthorized }
+        }
+
+        membrana = membranas.get(key)
+        if (!membrana) {
+            return { status: undefined, celula_index: activa.index }
+        }
+
+        es_dueño = (membrana.owner_index == activa.original_index)
+        bandera_requerida = es_dueño ? GEN_LEER_SELF : GEN_LEER_ANY
+
+        if ((activa.celula.genoma & bandera_requerida) == 0) {
+            return { status: unauthorized, celula_index: activa.index }
+        }
+
+        nuevo_indice = refrescar(activa.index)
+        if (nuevo_indice == null) {
+            return { status: error_db }
+        }
+
+        return {
+            status: ok,
+            valor: membrana.value,
+            nuevo_celula_index: nuevo_indice
+        }
+    }
+
+    función leer_libre(key) {
+
+        membrana = membranas.get(key)
+        if (!membrana) {
+            return { status: undefined }
+        }
+
+        dueño = resolver_celula_sistema(membrana.owner_index)
+        es_lectura_libre = dueño && ((dueño.celula.genoma & GEN_LEER_LIBRE) != 0)
+
+        if (es_lectura_libre) {
+            return { status: ok, valor: membrana.value }
+        }
+
+        return { status: unauthorized }
+    }
+
+    función escribir(key, value, celula_index, secreto) {
+
+        activa = resolver_celula(celula_index, secreto)
+        if (!activa) {
+            return { status: unauthorized }
+        }
+
+        membrana = membranas.get(key)
+
+        if (!membrana) {
+            nueva_membrana = {
+                owner_index: activa.original_index,
+                value: value
+            }
+            membranas.set(key, nueva_membrana)
+
+            nuevo_indice = refrescar(activa.index)
+            if (nuevo_indice == null) {
+                return { status: error_db }
+            }
+
+            return { status: ok, nuevo_celula_index: nuevo_indice }
+        }
+
+        es_dueño = (membrana.owner_index == activa.original_index)
+        bandera_requerida = es_dueño ? GEN_ESCRIBIR_SELF : GEN_ESCRIBIR_ANY
+
+        if ((activa.celula.genoma & bandera_requerida) == 0) {
+            return { status: unauthorized, celula_index: activa.index }
+        }
+
+        membrana.value = value
+        membranas.set(key, membrana)
+
+        nuevo_indice = refrescar(activa.index)
+        if (nuevo_indice == null) {
+            return { status: error_db }
+        }
+
+        return {
+            status: ok,
+            nuevo_celula_index: nuevo_indice
+        }
+    }
+
+    función borrar(key, celula_index, secreto) {
+
+        activa = resolver_celula(celula_index, secreto)
+        if (!activa) {
+            return { status: unauthorized }
+        }
+
+        membrana = membranas.get(key)
+        if (!membrana) {
+            return { status: undefined, celula_index: activa.index }
+        }
+
+        es_dueño = (membrana.owner_index == activa.original_index)
+        bandera_requerida = es_dueño ? GEN_BORRAR_SELF : GEN_BORRAR_ANY
+
+        if ((activa.celula.genoma & bandera_requerida) == 0) {
+            return { status: unauthorized, celula_index: activa.index }
+        }
+
+        membranas.delete(key)
+
+        nuevo_indice = refrescar(activa.index)
+        if (nuevo_indice == null) {
+            return { status: error_db }
+        }
+
+        return {
+            status: ok,
+            nuevo_celula_index: nuevo_indice
+        }
+    }
+
+    función diferir(
+        celula_index,
+        secreto_padre,
+        secreto_hija,
+        salt_hija,
+        genoma_hija,
+        x_hija,
+        y_hija,
+        z_hija
+    ) {
+
+        activa = resolver_celula(celula_index, secreto_padre)
+        if (!activa) {
+            return { status: unauthorized }
+        }
+
+        if ((activa.celula.genoma & GEN_DIFERIR) == 0) {
+            return { status: unauthorized, celula_index: activa.index }
+        }
+
+        if ((activa.celula.genoma & genoma_hija) != genoma_hija) {
+            return { status: unauthorized, celula_index: activa.index }
+        }
+
+        celula_hija = Celula.with_secret(
+            salt_hija,
+            secreto_hija,
+            genoma_hija,
+            x_hija,
+            y_hija,
+            z_hija
+        )
+
+        resultado_append = ouroboros.append(celula_hija)
+        if (resultado_append.error) {
+            return { status: error_db }
+        }
+
+        nuevo_indice_padre = refrescar(activa.index)
+        if (nuevo_indice_padre == null) {
+            return { status: error_db }
+        }
+
+        return {
+            status: ok,
+            indice_diferida: resultado_append.value,
+            nuevo_celula_index: nuevo_indice_padre
+        }
+    }
+
+    función cruzar(
+        celula_index_a,
+        secreto_a,
+        celula_index_b,
+        secreto_b,
+        secreto_hija,
+        salt_hija,
+        x_hija,
+        y_hija,
+        z_hija
+    ) {
+
+        activa_a = resolver_celula(celula_index_a, secreto_a)
+        activa_b = resolver_celula(celula_index_b, secreto_b)
+
+        if (!activa_a || !activa_b) {
+            return { status: unauthorized }
+        }
+
+        if ((activa_a.celula.genoma & GEN_FUSIONAR) == 0 || (activa_b.celula.genoma & GEN_FUSIONAR) == 0) {
+            return {
+                status: unauthorized,
+                celula_index_a: activa_a.index,
+                celula_index_b: activa_b.index
+            }
+        }
+
+        genoma_hija = activa_a.celula.genoma | activa_b.celula.genoma
+        celula_hija = Celula.with_secret(
+            salt_hija,
+            secreto_hija,
+            genoma_hija,
+            x_hija,
+            y_hija,
+            z_hija
+        )
+
+        resultado_append = ouroboros.append(celula_hija)
+        if (resultado_append.error) {
+            return { status: error_db }
+        }
+
+        nuevo_indice_a = refrescar(activa_a.index)
+        nuevo_indice_b = refrescar(activa_b.index)
+
+        if (nuevo_indice_a == null || nuevo_indice_b == null) {
+            return { status: error_db }
+        }
+
+        return {
+            status: ok,
+            indice_hijo: resultado_append.value,
+            nuevo_celula_index_a: nuevo_indice_a,
+            nuevo_celula_index_b: nuevo_indice_b
+        }
+    }
+
+    función refrescar(celula_index) {
+
+        celula_original = leer_celula_sistema(celula_index)
+        if (!celula_original) {
+            return null
+        }
+
+        celula_renovada = Celula.new(
+            celula_original.hash,
+            celula_original.salt,
+            celula_original.genoma,
+            celula_original.x,
+            celula_original.y,
+            celula_original.z
+        )
+
+        resultado_append = ouroboros.append(celula_renovada)
+        if (resultado_append.error) {
+            return null
+        }
+
+        celula_migrada = Celula.new(
+            celula_original.hash,
+            celula_original.salt,
+            celula_original.genoma | GEN_MIGRADA,
+            resultado_append.value,
+            celula_original.y,
+            celula_original.z
+        )
+
+        resultado_update = ouroboros.update(celula_index, celula_migrada)
+        if (resultado_update.error) {
+            return null
+        }
+
+        return resultado_append.value
+    }
+
+    función resolver_celula(celula_index, secreto) {
+
+        indice_actual = celula_index
+        celula = leer_celula_auth(indice_actual, secreto)
+        if (!celula) {
+            return null
+        }
+
+        mientras ((celula.genoma & GEN_MIGRADA) != 0) {
+            indice_actual = celula.x
+            celula = leer_celula_auth(indice_actual, secreto)
+
+            if (!celula) {
+                return null
+            }
+        }
+
+        return {
+            celula: celula,
+            index: indice_actual,
+            original_index: celula_index
+        }
+    }
+
+    función resolver_celula_sistema(celula_index) {
+
+        indice_actual = celula_index
+        celula = leer_celula_sistema(indice_actual)
+        if (!celula) {
+            return null
+        }
+
+        mientras ((celula.genoma & GEN_MIGRADA) != 0) {
+            indice_actual = celula.x
+            celula = leer_celula_sistema(indice_actual)
+
+            if (!celula) {
+                return null
+            }
+        }
+
+        return {
+            celula: celula,
+            index: indice_actual,
+            original_index: celula_index
+        }
+    }
+
+    función leer_celula(celula_index, secreto) {
+
+        activa = resolver_celula(celula_index, secreto)
+        if (!activa) {
+            return { status: unauthorized }
+        }
+
+        return {
+            status: ok,
+            celula: activa.celula,
+            celula_index: activa.index
+        }
+    }
+
+    función leer_celula_auth(celula_index, secreto) {
+        resultado = ouroboros.read_auth(celula_index, secreto)
+        if (resultado.error) {
+            return null
+        }
+
+        if (es_celula_vacia(resultado.value)) {
+            return null
+        }
+
+        return resultado.value
+    }
+
+    función leer_celula_sistema(celula_index) {
+        resultado = ouroboros.read(celula_index)
+        if (resultado.error) {
+            return null
+        }
+
+        if (es_celula_vacia(resultado.value)) {
+            return null
+        }
+
+        return resultado.value
+    }
+
+    función es_celula_vacia(celula) {
+        return (
+            celula.hash == [0; 32] &&
+            celula.salt == [0; 16] &&
+            celula.genoma == 0 &&
+            celula.x == 0 &&
+            celula.y == 0 &&
+            celula.z == 0
+        )
+    }
+}
+

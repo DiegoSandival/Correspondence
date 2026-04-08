@@ -1,0 +1,1 @@
+/home/starnet/Code/Correspondence/target/debug/examples/probar: /home/starnet/Code/Correspondence/examples/probar.rs /home/starnet/Code/Correspondence/src/cell.rs /home/starnet/Code/Correspondence/src/error.rs /home/starnet/Code/Correspondence/src/genesis.rs /home/starnet/Code/Correspondence/src/lib.rs /home/starnet/Code/Correspondence/src/ops.rs

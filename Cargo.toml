@@ -1,0 +1,9 @@
+[package]
+name = "correspondence"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+ouroboros = { git = "https://github.com/DiegoSandival/ouroboros", branch = "minimal" }
+redb = "4"
+thiserror = "2"
